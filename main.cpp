@@ -276,8 +276,76 @@ void task_4() {
     delete[] arr100, arr200, arr300;
 }
 
+template <typename T>
+void task_9_ijk(T** a, T** b, T** out, const size_t size) {
+    //memset(out, 0, size * size);
+
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            for (int k = 0; k < size; k++) {
+                out[i][j] += a[i][k] * b[k][j];
+            }
+        }
+    }
+}
+
+template<typename T>
+T** task_9_create_mat(size_t size) {
+    T** result = new T*[size];
+    for(int i = 0; i < size; i++)
+        result[i] = new T[size];
+
+    return result;
+}
+
+template<typename T>
+void task_9_free_mat(T** mat, size_t size) {
+    for(int i = 0; i < size; i++)
+        delete[] mat[i];
+
+    delete[] mat;
+}
+
+template<typename T>
+void task_9_measure_int(const std::string& typeName, size_t mat_size) {
+    auto** mat_a = task_9_create_mat<T>(mat_size);
+    auto** mat_b = task_9_create_mat<T>(mat_size);
+    auto** mat_c = task_9_create_mat<T>(mat_size);
+
+    std::uniform_real_distribution<double> randint;
+    std::default_random_engine eng;
+
+    for(int i = 0; i < mat_size; i++) {
+        for(int j = 0; j < mat_size; j++) {
+            mat_a[i][j] = (T)randint(eng);
+            mat_b[i][j] = (T)randint(eng);
+        }
+    }
+
+    const double start = omp_get_wtime();
+    task_9_ijk<T>(mat_a, mat_b, mat_c, mat_size);
+    std::cout << mat_size << "x" << mat_size << " " << typeName << ": " << std::fixed << std::setprecision(6) << (omp_get_wtime() - start) << " seconds" << std::endl;
+
+    task_9_free_mat<T>(mat_a, mat_size);
+    task_9_free_mat<T>(mat_b, mat_size);
+    task_9_free_mat<T>(mat_c, mat_size);
+}
+
+void task_9() {
+    for(int i = 0; i < 3; i++) {
+        int size = 512 * std::pow(2, i);
+
+        task_9_measure_int<int8_t>("int8", size);
+        task_9_measure_int<int16_t>("int16", size);
+        task_9_measure_int<int32_t>("int32", size);
+        task_9_measure_int<int64_t>("int64", size);
+        task_9_measure_int<float>("float", size);
+        task_9_measure_int<double>("double", size);
+    }
+}
+
 int main() {
-    task_1();
+    /*task_1();
     std::cout << "\n";
 
     task_2();
@@ -287,7 +355,9 @@ int main() {
     std::cout << "\n";
 
     task_4();
-    std::cout << "\n";
+    std::cout << "\n";*/
+
+    task_9();
 
     return 0;
 }
