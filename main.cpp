@@ -6,40 +6,28 @@
 #include <cmath>
 #include <omp.h>
 #include <random>
-//#include <format>
 #include <x86intrin.h>
 
 #if defined(_WIN32) || defined(WIN32)
 #include <windows.h>
+#if defined(__WINE__)
 #include <wine/msvcrt/intrin.h>
+#else
+#include <intrin.h>
+#endif
 
 void ConvertTimeTToSystemTime(SYSTEMTIME* stime, time_t* time){
-    tm my_tm;
+    tm my_tm{};
     localtime_r(time, &my_tm);
     memset(stime, 0, sizeof(SYSTEMTIME));
     stime->wYear = my_tm.tm_year + 1900;
     stime->wMonth = my_tm.tm_mon + 1;
     stime->wDay = my_tm.tm_mday;
 }
-
-#ifndef MAXFLOAT
-#define MAXFLOAT 3.40282347e+38F
-#endif
-
-int _cpuid(uint32_t* info, uint32_t func_id) {
-    __cpuid((int32_t*)info, func_id);
-    return 0;
-}
-#else
-#include <cpuid.h>
-
-int _cpuid(uint32_t* info, uint32_t func_id) {
-    return __get_cpuid(func_id, info, info + 1, info + 2, info + 3);
-}
 #endif
 
 #define FILL_ZERO(NUM, ZEROS) std::setfill('0') << std::setw(ZEROS) << NUM
-
+constexpr int MAT_BASE_SIZE = 512;
 
 void task_1() {
     time_t last_time = 0x7FFFFFFF;
@@ -277,9 +265,7 @@ void task_4() {
 }
 
 template <typename T>
-void task_9_ijk(T** a, T** b, T** out, const size_t size) {
-    //memset(out, 0, size * size);
-
+void mat_mul_ijk(T** a, T** b, T** out, const size_t size) {
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
             for (int k = 0; k < size; k++) {
@@ -290,7 +276,7 @@ void task_9_ijk(T** a, T** b, T** out, const size_t size) {
 }
 
 template<typename T>
-T** task_9_create_mat(size_t size) {
+T** mat_create(size_t size) {
     T** result = new T*[size];
     for(int i = 0; i < size; i++)
         result[i] = new T[size];
@@ -299,7 +285,7 @@ T** task_9_create_mat(size_t size) {
 }
 
 template<typename T>
-void task_9_free_mat(T** mat, size_t size) {
+void mat_free(T** mat, size_t size) {
     for(int i = 0; i < size; i++)
         delete[] mat[i];
 
@@ -307,12 +293,12 @@ void task_9_free_mat(T** mat, size_t size) {
 }
 
 template<typename T>
-void task_9_measure_int(const std::string& typeName, size_t mat_size) {
-    auto** mat_a = task_9_create_mat<T>(mat_size);
-    auto** mat_b = task_9_create_mat<T>(mat_size);
-    auto** mat_c = task_9_create_mat<T>(mat_size);
+void measure_mat_mul(const std::string& typeName, size_t mat_size) {
+    auto** mat_a = mat_create<T>(mat_size);
+    auto** mat_b = mat_create<T>(mat_size);
+    auto** mat_c = mat_create<T>(mat_size);
 
-    std::uniform_real_distribution<double> randint;
+    std::uniform_real_distribution<> randint;
     std::default_random_engine eng;
 
     for(int i = 0; i < mat_size; i++) {
@@ -323,41 +309,121 @@ void task_9_measure_int(const std::string& typeName, size_t mat_size) {
     }
 
     const double start = omp_get_wtime();
-    task_9_ijk<T>(mat_a, mat_b, mat_c, mat_size);
+    mat_mul_ijk<T>(mat_a, mat_b, mat_c, mat_size);
     std::cout << mat_size << "x" << mat_size << " " << typeName << ": " << std::fixed << std::setprecision(6) << (omp_get_wtime() - start) << " seconds" << std::endl;
 
-    task_9_free_mat<T>(mat_a, mat_size);
-    task_9_free_mat<T>(mat_b, mat_size);
-    task_9_free_mat<T>(mat_c, mat_size);
+    mat_free<T>(mat_a, mat_size);
+    mat_free<T>(mat_b, mat_size);
+    mat_free<T>(mat_c, mat_size);
+}
+
+template <typename T>
+class Matrix {
+public:
+    explicit Matrix(size_t size) : size(size) {
+        this->data = mat_create<T>(size);
+    }
+
+    void fill() {
+        std::uniform_int_distribution<T> randint;
+        std::default_random_engine eng;
+
+        for(int i = 0; i < size; i++) {
+            for(int j = 0; j < size; j++) {
+                this->data[i][j] = (T)randint(eng);
+            }
+        }
+    }
+
+    Matrix<T> operator*(const Matrix<T>& other) const {
+        auto result = Matrix<T>(this->size);
+
+        for (int i = 0; i < size; ++i) {
+            for (int j = 0; j < size; ++j) {
+                for (int k = 0; k < size; ++k) {
+                    result.data[i][j] += this->data[i][k] * other.data[k][j];
+                }
+            }
+        }
+        return result;
+    }
+
+    ~Matrix() {
+        for(int i = 0; i < size; i++)
+            delete[] data[i];
+
+        delete[] data;
+    }
+
+private:
+    size_t size;
+    T** data;
+};
+
+template<typename T>
+void task_7_obj_measure(const std::string& typeName, size_t size) {
+    auto mat_a = Matrix<T>(size);
+    auto mat_b = Matrix<T>(size);
+
+    mat_a.fill();
+    mat_b.fill();
+
+    const double start = omp_get_wtime();
+    auto mat_c = mat_a * mat_b;
+    std::cout << size << "x" << size << " " << typeName << "(object): " << std::fixed << std::setprecision(6) << (omp_get_wtime() - start) << " seconds" << std::endl;
+}
+
+void task_7() {
+    for(int i = 0; i < 3; i++) {
+        int size = MAT_BASE_SIZE * std::pow(2, i);
+
+        measure_mat_mul<int8_t>("int8", size);
+        measure_mat_mul<int16_t>("int16", size);
+        measure_mat_mul<int32_t>("int32", size);
+
+        task_7_obj_measure<int8_t>("int8", size);
+        task_7_obj_measure<int16_t>("int16", size);
+        task_7_obj_measure<int32_t>("int32", size);
+    }
 }
 
 void task_9() {
     for(int i = 0; i < 3; i++) {
-        int size = 512 * std::pow(2, i);
+        int size = MAT_BASE_SIZE * std::pow(2, i);
 
-        task_9_measure_int<int8_t>("int8", size);
-        task_9_measure_int<int16_t>("int16", size);
-        task_9_measure_int<int32_t>("int32", size);
-        task_9_measure_int<int64_t>("int64", size);
-        task_9_measure_int<float>("float", size);
-        task_9_measure_int<double>("double", size);
+        measure_mat_mul<int8_t>("int8", size);
+        measure_mat_mul<int16_t>("int16", size);
+        measure_mat_mul<int32_t>("int32", size);
+        measure_mat_mul<int64_t>("int64", size);
+        measure_mat_mul<float>("float", size);
+        measure_mat_mul<double>("double", size);
     }
 }
 
 int main() {
-    /*task_1();
+    std::cout << "Task 1\n";
+    task_1();
     std::cout << "\n";
 
+    std::cout << "Task 2\n";
     task_2();
     std::cout << "\n";
 
+    std::cout << "Task 3\n";
     task_3();
     std::cout << "\n";
 
+    std::cout << "Task 4\n";
     task_4();
-    std::cout << "\n";*/
+    std::cout << "\n";
 
+    std::cout << "Task 7\n";
+    task_7();
+    std::cout << "\n";
+
+    std::cout << "Task 9\n";
     task_9();
+    std::cout << "\n";
 
     return 0;
 }
