@@ -8,6 +8,10 @@
 #include <random>
 #include <x86intrin.h>
 
+#define FILL_ZERO(NUM, ZEROS) std::setfill('0') << std::setw(ZEROS) << NUM
+#define NANOSECONDS 1000000000
+constexpr int MAT_BASE_SIZE = 128;
+
 #if defined(_WIN32) || defined(WIN32)
 #include <windows.h>
 #if defined(__WINE__)
@@ -24,11 +28,7 @@ void ConvertTimeTToSystemTime(SYSTEMTIME* stime, time_t* time){
     stime->wMonth = my_tm.tm_mon + 1;
     stime->wDay = my_tm.tm_mday;
 }
-#endif
 
-#define FILL_ZERO(NUM, ZEROS) std::setfill('0') << std::setw(ZEROS) << NUM
-#define NANOSECONDS 1000000000
-constexpr int MAT_BASE_SIZE = 128;
 static double QUERY_PERF_MULT = 1;
 
 void task_1() {
@@ -274,14 +274,18 @@ void task_4() {
     std::cout << "T(300000)/T(100000) = " << std::fixed << std::setprecision(3) << ta3 / ta1 << std::endl;
 
     uint32_t tr1, tr2, tr3;
-    std::cout << "relative 100k: " << (tr1 = task_4_rel(arr100, 100000, result)) << " iterations, result: " << result << std::endl;
-    std::cout << "relative 200k: " << (tr2 = task_4_rel(arr200, 200000, result)) << " iterations, result: " << result << std::endl;
-    std::cout << "relative 300k: " << (tr3 = task_4_rel(arr300, 300000, result)) << " iterations, result: " << result << std::endl;
-    std::cout << "T(200000)/T(100000) = " << std::fixed << std::setprecision(3) << (double)tr2 / tr1 << ", T(100000)/T(200000): "<< (double)tr1 / tr2 << std::endl;
-    std::cout << "T(300000)/T(100000) = " << std::fixed << std::setprecision(3) << (double)tr3 / tr1 << ", T(100000)/T(300000): "<< (double)tr1 / tr3 << std::endl;
+    double tr1t, tr2t, tr3t;
+    std::cout << "relative 100k: " << (tr1 = task_4_rel(arr100, 100000, result)) << " iterations, time: " << std::fixed << std::setprecision(6) << (tr1t = (double)2 / tr1) << ", result: " << result << std::endl;
+    std::cout << "relative 200k: " << (tr2 = task_4_rel(arr200, 200000, result)) << " iterations, time: " << std::fixed << std::setprecision(6) << (tr2t = (double)2 / tr2) << ", result: " << result << std::endl;
+    std::cout << "relative 300k: " << (tr3 = task_4_rel(arr300, 300000, result)) << " iterations, time: " << std::fixed << std::setprecision(6) << (tr3t = (double)2 / tr3) << ", result: " << result << std::endl;
+    /*std::cout << "Ti(200000)/Ti(100000) = " << std::fixed << std::setprecision(3) << (double)tr2 / tr1 << ", Ti(100000)/Ti(200000): "<< (double)tr1 / tr2 << std::endl;
+    std::cout << "Ti(300000)/Ti(100000) = " << std::fixed << std::setprecision(3) << (double)tr3 / tr1 << ", Ti(100000)/Ti(300000): "<< (double)tr1 / tr3 << std::endl;*/
+    std::cout << "T(200000)/T(100000) = " << std::fixed << std::setprecision(3) << tr2t / tr1t << std::endl;
+    std::cout << "T(300000)/T(100000) = " << std::fixed << std::setprecision(3) << tr3t / tr1t << std::endl;
 
     delete[] arr100, arr200, arr300;
 }
+#endif
 
 template <typename T>
 void mat_mul_ijk(T** a, T** b, T** out, const size_t size) {
@@ -420,6 +424,7 @@ void task_9() {
 }
 
 int main() {
+#if defined(_WIN32) || defined(WIN32)
     LARGE_INTEGER qp_freq;
     QueryPerformanceFrequency(&qp_freq);
     std::cout << "QueryPerformanceFrequency frequency: " << qp_freq.QuadPart << " counts/second" << std::endl;
@@ -440,6 +445,7 @@ int main() {
     std::cout << "Task 4\n";
     task_4();
     std::cout << "\n";
+#endif
 
     std::cout << "Task 7\n";
     task_7();
