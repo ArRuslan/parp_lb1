@@ -27,7 +27,9 @@ void ConvertTimeTToSystemTime(SYSTEMTIME* stime, time_t* time){
 #endif
 
 #define FILL_ZERO(NUM, ZEROS) std::setfill('0') << std::setw(ZEROS) << NUM
-constexpr int MAT_BASE_SIZE = 512;
+#define NANOSECONDS 1000000000
+constexpr int MAT_BASE_SIZE = 128;
+static double QUERY_PERF_MULT = 1;
 
 void task_1() {
     time_t last_time = 0x7FFFFFFF;
@@ -158,15 +160,16 @@ double task_2_chrono() {
 void task_2() {
     std::cout << "time: " << task_2_time() << " seconds" << std::endl;
     std::cout << "clock: " << task_2_clock() << " milliseconds" << std::endl;
-    std::cout << "GetSystemTimeAsFileTime: " << task_2_GetSystemTimeAsFileTime() << " nanoseconds?" << std::endl;
-    std::cout << "GetSystemTimePreciseAsFileTime: " << task_2_GetSystemTimePreciseAsFileTime() << " nanoseconds?" << std::endl;
+    std::cout << "GetSystemTimeAsFileTime: " << task_2_GetSystemTimeAsFileTime() << " nanoseconds" << std::endl;
+    std::cout << "GetSystemTimePreciseAsFileTime: " << task_2_GetSystemTimePreciseAsFileTime() << " nanoseconds" << std::endl;
     std::cout << "GetTickCount: " << task_2_GetTickCount() << " milliseconds" << std::endl;
     std::cout << "__rdtsc: " << task_2_rdtsc() << " tacts" << std::endl;
-    std::cout << "QueryPerformanceCounter: " << task_2_QueryPerformanceCounter() << " nanoseconds?" << std::endl;
+    int64_t qp_count = task_2_QueryPerformanceCounter();
+    std::cout << "QueryPerformanceCounter: " << qp_count << " counts (" << qp_count * QUERY_PERF_MULT * NANOSECONDS << " nanoseconds)" << std::endl;
     const auto chrono_res = task_2_chrono();
-    std::cout << "std::chrono: " << std::fixed << std::setprecision(10) << chrono_res << " seconds (" << std::setprecision(0) << (chrono_res * 1000000000) << " nanoseconds)" << std::endl;
+    std::cout << "std::chrono: " << std::fixed << std::setprecision(10) << chrono_res << " seconds (" << std::setprecision(0) << (chrono_res * NANOSECONDS) << " nanoseconds)" << std::endl;
     const auto omp_res = task_2_omp();
-    std::cout << "OpenMP: " << std::fixed << std::setprecision(10) << omp_res << " seconds (" << std::setprecision(0) << (omp_res * 1000000000) << " nanoseconds)" << std::endl;
+    std::cout << "OpenMP: " << std::fixed << std::setprecision(10) << omp_res << " seconds (" << std::setprecision(0) << (omp_res * NANOSECONDS) << " nanoseconds)" << std::endl;
 }
 
 uint64_t task_3_rdtsc(int* arr, int& result) {
@@ -204,10 +207,12 @@ void task_3() {
 
     int result;
     std::cout << "__rdtsc: " << task_3_rdtsc((int*)&arr, result) << " tacts, result: " << result << std::endl;
-    std::cout << "QueryPerformanceCounter: " << task_3_QueryPerformanceCounter((int*)&arr, result) << " nanoseconds, result: " << result << std::endl;
+    int64_t qp_count = task_3_QueryPerformanceCounter((int*)&arr, result);
+    std::cout << "QueryPerformanceCounter: " << qp_count << " counts (" << qp_count * QUERY_PERF_MULT * NANOSECONDS << " nanoseconds), result: " << result << std::endl;
 }
 
 double task_4_abs(int* arr, size_t size, int& result) {
+    result = 0;
     double start = omp_get_wtime();
 
     for (int i = 0; i < size; i++) {
@@ -401,6 +406,11 @@ void task_9() {
 }
 
 int main() {
+    LARGE_INTEGER qp_freq;
+    QueryPerformanceFrequency(&qp_freq);
+    std::cout << "QueryPerformanceFrequency frequency: " << qp_freq.QuadPart << " counts/second" << std::endl;
+    QUERY_PERF_MULT = (double)1 / qp_freq.QuadPart;
+
     std::cout << "Task 1\n";
     task_1();
     std::cout << "\n";
