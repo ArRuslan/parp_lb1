@@ -206,9 +206,23 @@ void task_3() {
     }
 
     int result;
-    std::cout << "__rdtsc: " << task_3_rdtsc((int*)&arr, result) << " tacts, result: " << result << std::endl;
-    int64_t qp_count = task_3_QueryPerformanceCounter((int*)&arr, result);
-    std::cout << "QueryPerformanceCounter: " << qp_count << " counts (" << qp_count * QUERY_PERF_MULT * NANOSECONDS << " nanoseconds), result: " << result << std::endl;
+    uint64_t min_time = 1 << 31;
+    for(int i = 0; i < 10; i++) {
+        uint64_t current = task_3_rdtsc((int*)&arr, result);
+        if(current < min_time)
+            min_time = current;
+    }
+
+    std::cout << "__rdtsc: " << min_time << " tacts, result: " << result << std::endl;
+
+    min_time = 1 << 31;
+    for(int i = 0; i < 10; i++) {
+        uint64_t current = task_3_QueryPerformanceCounter((int*)&arr, result);
+        if(current < min_time)
+            min_time = current;
+    }
+
+    std::cout << "QueryPerformanceCounter: " << min_time << " counts (" << min_time * QUERY_PERF_MULT * NANOSECONDS << " nanoseconds), result: " << result << std::endl;
 }
 
 double task_4_abs(int* arr, size_t size, int& result) {
